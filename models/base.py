@@ -154,6 +154,7 @@ class BaseModel(metaclass=ABCMeta):
 
                     # Save generated images
                     save_period = 10000
+                    save_period = 100
                     if b != 0 and ((b // save_period != (b + bsize) // save_period) or ((b + bsize) == num_data)):
                         outfile = os.path.join(res_out_dir, 'epoch_%04d_batch_%d.png' % (e + 1, b + bsize))
                         self.save_images(outfile)
@@ -181,8 +182,10 @@ class BaseModel(metaclass=ABCMeta):
         imgs = np.clip(imgs, 0.0, 1.0)
         if imgs.shape[3] == 1:
             imgs = np.squeeze(imgs, axis=(3,))
+            dims = 1
 
-        _, height, width, dims = imgs.shape
+        # _, height, width, dims = imgs.shape
+        _, height, width = imgs.shape
 
         margin = min(width, height) // 10
         figure = np.ones(((margin + height) * 10 + margin, (margin + width) * 10 + margin, dims), np.float32)
@@ -193,9 +196,11 @@ class BaseModel(metaclass=ABCMeta):
 
             y = margin + (margin + height) * row
             x = margin + (margin + width) * col
-            figure[y:y+height, x:x+width, :] = imgs[i, :, :, :]
+            # figure[y:y+height, x:x+width, :] = imgs[i, :, :, :]
+            figure[y:y+height, x:x+width, 0] = imgs[i, :, :]
 
-        figure = Image.fromarray((figure * 255.0).astype(np.uint8))
+        # figure = Image.fromarray((figure * 255.0).astype(np.uint8))
+        figure = Image.fromarray((figure[:,:,0] * 255.0).astype(np.uint8))
         figure.save(filename)
 
     def save_model(self, model_file):
