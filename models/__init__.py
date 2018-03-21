@@ -10,3 +10,5 @@ from .lsgan import LSGAN
 
 from .cvae import CVAE
 from .cvaegan import CVAEGAN
+from .vaegan_mod import VAEGAN_mod
+from .vae_gan import VAEGAN

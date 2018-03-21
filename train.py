@@ -21,14 +21,18 @@ models = {
     'wgan': WGAN,
     'lsgan': LSGAN,
     'cvae': CVAE,
-    'cvaegan': CVAEGAN
+    'cvaegan': CVAEGAN,
+    'vaegan_mod': VAEGAN_mod,
+    'vaegan': VAEGAN
 }
 
 def main(_):
     # Parsing arguments
     parser = argparse.ArgumentParser(description='Training GANs or VAEs')
-    parser.add_argument('--model', type=str, required=False, default='cvaegan')
+    parser.add_argument('--model', type=str, required=False, default='vaegan')
+    # parser.add_argument('--model', type=str, required=False, default='vaegan_mod')
     parser.add_argument('--dataset', type=str, required=False, default=r'.\datasets\files\celebA.hdf5')
+    # parser.add_argument('--dataset', type=str, required=False, default=r'mnist')
     parser.add_argument('--datasize', type=int, default=-1)
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--batchsize', type=int, default=50)
