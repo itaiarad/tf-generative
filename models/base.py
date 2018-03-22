@@ -119,7 +119,7 @@ class HandBaseModel(metaclass=ABCMeta):
             self.writer = tf.summary.FileWriter(log_out_dir, self.sess.graph)
             self.sess.graph.finalize()
 
-            print('\n\n--- START TRAINING ---\n')
+            print('\n[*] -- START TRAINING -- \n')
             for e in range(current_epoch.eval(), epochs):
                 perm = np.random.permutation(num_data)
                 start_time = time.time()
@@ -157,8 +157,9 @@ class HandBaseModel(metaclass=ABCMeta):
                     sys.stdout.flush()
 
                     # Save generated images
-                    save_period = 10000
-                    # save_period = 100
+                    #TODO: add save_period as a parameter
+                    save_period = 1000
+
                     if b != 0 and ((b // save_period != (b + bsize) // save_period) or ((b + bsize) == num_data)):
                         outfile = os.path.join(res_out_dir, 'epoch_%04d_batch_%d.png' % (e + 1, b + bsize))
                         self.save_images(outfile)
