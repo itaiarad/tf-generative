@@ -370,7 +370,7 @@ class BaseModel(metaclass=ABCMeta):
             self.writer = tf.summary.FileWriter(log_out_dir, self.sess.graph)
             self.sess.graph.finalize()
 
-            print('\n\n--- START TRAINING ---\n')
+            print('\n[*] --START TRAINING-- \n')
             for e in range(current_epoch.eval(), epochs):
                 perm = np.random.permutation(num_data)
                 start_time = time.time()

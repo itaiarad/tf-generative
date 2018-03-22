@@ -54,6 +54,7 @@ def main(_):
     if not os.path.isdir(args.output):
         os.mkdir(args.output)
 
+    print('[*] Loading dataset')
     # Load datasets
     if args.dataset == 'mnist':
         datasets = mnist.load_data()
@@ -73,6 +74,7 @@ def main(_):
     else:
         input_size = datasets.shape[1:]
 
+    print('[*] Initializing model')
     model = models[args.model](
         batchsize=args.batchsize,
         input_shape=input_size,
@@ -89,6 +91,7 @@ def main(_):
     # Training loop
     if args.dataset != 'hands':
         datasets.images = datasets.images.astype('float32') * 2.0 - 1.0
+
     model.main_loop(datasets,
                     epochs=args.epoch)
 
