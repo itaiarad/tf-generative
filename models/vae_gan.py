@@ -186,14 +186,14 @@ class VAEGAN(HandBaseModel):
 
         self.z_dims = z_dims
         self.use_wnorm = False
-
+        self.use_noise = False
         self.encoder = None
         self.decoder = None
         self.rec_loss = None
         self.kl_loss = None
         self.train_op = None
 
-        self.x_train = None
+        self.x_train_real = None
 
         self.z_test = None
         self.x_test = None
@@ -208,15 +208,16 @@ class VAEGAN(HandBaseModel):
 
         self.build_model()
 
-    def train_on_batch(self, x_batch, index):
+    def train_on_batch(self, x_batch, index, z_p=None):
         batchsize = len(x_batch)
-        z_p = np.random.uniform(-1, 1, size=(len(x_batch), self.z_dims))
+        if z_p is None:
+            z_p = np.random.uniform(-1, 1, size=(len(x_batch), self.z_dims))
 
         _, _, _, kl_loss, gen_loss, dis_loss, gen_acc, dis_acc, summary = self.sess.run(
             (self.gen_trainer, self.enc_trainer, self.dis_trainer, self.kl_loss, self.gen_loss,
              self.dis_loss, self.gen_acc, self.dis_acc, self.summary),
             feed_dict={
-                self.x_train: x_batch, self.z_p: z_p,
+                self.x_train_real: x_batch, self.z_p: z_p,
                 self.z_test: self.test_data})
 
         summary_priod = 1000
@@ -224,7 +225,7 @@ class VAEGAN(HandBaseModel):
             summary = self.sess.run(
                 self.summary,
                 feed_dict={
-                    self.x_train: x_batch, self.z_p: z_p, self.z_test: self.test_data})
+                    self.x_train_real: x_batch, self.z_p: z_p, self.z_test: self.test_data})
             self.writer.add_summary(summary, index)
 
         return [
@@ -248,21 +249,25 @@ class VAEGAN(HandBaseModel):
 
         # Trainer
         batch_shape = (None,) + self.input_shape
-        self.x_train = tf.placeholder(tf.float32, shape=batch_shape)
+        self.x_train_real = tf.placeholder(tf.float32, shape=batch_shape)
 
-        z_avg, z_log_var = self.encoder(self.x_train)
+        z_avg, z_log_var = self.encoder(self.x_train_real)
         z_sample = sample_normal(z_avg, z_log_var)
         x_sample = self.decoder(z_sample)
 
-        self.z_p = tf.placeholder(tf.float32, shape=(None, self.z_dims))
+        if self.use_noise:
+            self.z_p = tf.placeholder(tf.float32, shape=(None, self.z_dims))
+        else:
+            self.z_p = tf.placeholder(tf.float32, shape=batch_shape)
+
         x_p = self.decoder(self.z_p)
 
-        y_real, f_D_real = self.discriminator(self.x_train)
+        y_real, f_D_real = self.discriminator(self.x_train_real)
         y_fake, f_D_fake = self.discriminator(x_sample)
         y_p, f_D_p = self.discriminator(x_p)
 
         rec_loss_scale = tf.constant(np.prod(self.input_shape), tf.float32)
-        self.rec_loss = tf.losses.absolute_difference(self.x_train, x_sample) * rec_loss_scale
+        self.rec_loss = tf.losses.absolute_difference(self.x_train_real, x_sample) * rec_loss_scale
         self.kl_loss = kl_loss(z_avg, z_log_var)
 
         enc_optim = tf.train.AdamOptimizer(learning_rate=2.0e-4, beta1=0.5)
@@ -272,7 +277,7 @@ class VAEGAN(HandBaseModel):
 
         if self.use_feature_match:
             L_GD = self.L_GD(f_D_real, f_D_p)
-            L_G = self.L_G(self.x_train, x_sample, f_D_real, f_D_fake)
+            L_G = self.L_G(self.x_train_real, x_sample, f_D_real, f_D_fake)
             with tf.name_scope('L_D'):
                 L_D = tf.losses.sigmoid_cross_entropy(tf.ones_like(y_real), y_real) + \
                       tf.losses.sigmoid_cross_entropy(tf.zeros_like(y_fake), y_fake) + \
@@ -292,7 +297,7 @@ class VAEGAN(HandBaseModel):
                       tf.losses.sigmoid_cross_entropy(tf.ones_like(y_p), y_p)
 
             with tf.name_scope('L_rec'):
-                L_rec =  0.5 * tf.reduce_mean(tf.reduce_sum(tf.squared_difference(self.x_train, x_sample), axis=[1, 2, 3]))
+                L_rec =  0.5 * tf.reduce_mean(tf.reduce_sum(tf.squared_difference(self.x_train_real, x_sample), axis=[1, 2, 3]))
 
             with tf.name_scope('L_D'):
                 L_D = tf.losses.sigmoid_cross_entropy(tf.ones_like(y_real), y_real) + \
@@ -326,7 +331,7 @@ class VAEGAN(HandBaseModel):
         x_tile = self.image_tiling(self.x_test, self.test_size, self.test_size)
 
         # Summary
-        tf.summary.image('x_real', image_cast(self.x_train), 10)
+        tf.summary.image('x_real', image_cast(self.x_train_real), 10)
         tf.summary.image('x_fake', image_cast(x_sample), 10)
         tf.summary.image('x_tile', image_cast(x_tile), 1)
         tf.summary.scalar('rec_loss', self.rec_loss)

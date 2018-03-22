@@ -135,7 +135,10 @@ class HandBaseModel(metaclass=ABCMeta):
 
                     # Get batch and train on it
                     x_batch = self.make_batch(datasets, indx)
-                    losses = self.train_on_batch(x_batch, e * num_data + (b + bsize))
+                    #TODO: Change range of sythetic images from 100 to different size
+                    syn_ind = range(100)
+                    x_sythetic_batch = self.make_batch(datasets, syn_ind, synthetic_image=True)
+                    losses = self.train_on_batch(x_batch, e * num_data + (b + bsize), z_p=x_sythetic_batch)
 
                     # Print current status
                     elapsed_time = time.time() - start_time
