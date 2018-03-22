@@ -14,6 +14,255 @@ import tensorflow as tf
 
 from abc import ABCMeta, abstractmethod
 from .utils import *
+import cv2
+
+class HandBaseModel(metaclass=ABCMeta):
+    """
+    Base class for non-conditional generative networks
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Initialization
+        """
+        if 'name' not in kwargs:
+            raise Exception('Please specify model name!')
+        self.name = kwargs['name']
+
+        if 'batchsize' not in kwargs:
+            raise Exception('Please specify batchsize!')
+        self.batchsize = kwargs['batchsize']
+
+        if 'input_shape' not in kwargs:
+            raise Exception('Please specify input shape!')
+
+        self.input_shape = kwargs['input_shape']
+
+        if 'output' not in kwargs:
+            self.output = 'output'
+        else:
+            self.output = kwargs['output']
+
+        self.resume = kwargs['resume']
+
+        self.sess = tf.Session()
+        self.writer = None
+        self.saver = None
+        self.summary = None
+
+        self.test_size = 10
+        self.test_data = None
+
+        self.test_mode = False
+
+    def check_input_shape(self, input_shape):
+        #TODO: change input shape for datagen images
+        # Check for CelebA
+        if input_shape == (64, 64, 3):
+            return
+
+        # Check for MNIST (size modified)
+        if input_shape == (32, 32, 1):
+            return
+
+        # Check for Cifar10, 100 etc
+        if input_shape == (32, 32, 3):
+            return
+
+        errmsg = 'Input size should be 32 x 32 or 64 x 64!'
+        raise Exception(errmsg)
+
+    def main_loop(self, datasets, epochs=100):
+        """
+        Main learning loop
+        """
+        # Create output directories if not exist
+        out_dir = os.path.join(self.output, self.name)
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+
+        res_out_dir = os.path.join(out_dir, 'results')
+        if not os.path.isdir(res_out_dir):
+            os.makedirs(res_out_dir)
+
+        chk_out_dir = os.path.join(out_dir, 'checkpoints')
+        if not os.path.isdir(chk_out_dir):
+            os.makedirs(chk_out_dir)
+
+        time_str = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+        log_out_dir = os.path.join(out_dir, 'log', time_str)
+        if not os.path.isdir(log_out_dir):
+            os.makedirs(log_out_dir)
+
+        # Make test data
+        self.make_test_data()
+
+        # Start training
+        with self.sess.as_default():
+            current_epoch = tf.Variable(0, name='current_epoch', dtype=tf.int32)
+            current_batch = tf.Variable(0, name='current_batch', dtype=tf.int32)
+
+            # Initialize global variables
+            self.saver = tf.train.Saver()
+            if self.resume is not None:
+                print('Resume training: %s' % self.resume)
+                self.load_model(self.resume)
+            else:
+                self.sess.run(tf.global_variables_initializer())
+                self.sess.run(tf.local_variables_initializer())
+
+            # Update rule
+            num_data = len(datasets.real_images)
+            update_epoch = current_epoch.assign(current_epoch + 1)
+            update_batch = current_batch.assign(tf.mod(tf.minimum(current_batch + self.batchsize, num_data), num_data))
+
+            self.writer = tf.summary.FileWriter(log_out_dir, self.sess.graph)
+            self.sess.graph.finalize()
+
+            print('\n\n--- START TRAINING ---\n')
+            for e in range(current_epoch.eval(), epochs):
+                perm = np.random.permutation(num_data)
+                start_time = time.time()
+                for b in range(current_batch.eval(), num_data, self.batchsize):
+                    # Update batch index
+                    self.sess.run(update_batch)
+
+                    # Check batch size
+                    bsize = min(self.batchsize, num_data - b)
+                    indx = perm[b:b+bsize]
+                    if bsize < self.batchsize:
+                        break
+
+                    # Get batch and train on it
+                    x_batch = self.make_batch(datasets, indx)
+                    losses = self.train_on_batch(x_batch, e * num_data + (b + bsize))
+
+                    # Print current status
+                    elapsed_time = time.time() - start_time
+                    eta = elapsed_time / (b + bsize) * (num_data - (b + bsize))
+                    ratio = 100.0 * (b + bsize) / num_data
+                    print('Epoch #%d,  Batch: %d / %d (%6.2f %%)  ETA: %s' % \
+                          (e + 1, b + bsize, num_data, ratio, time_format(eta)))
+
+                    for i, (k, v) in enumerate(losses):
+                        text = '%s = %8.6f' % (k, v)
+                        print('  %25s' % (text), end='')
+                        if (i + 1) % 3 == 0:
+                            print('')
+
+                    print('\n')
+                    sys.stdout.flush()
+
+                    # Save generated images
+                    save_period = 10000
+                    # save_period = 100
+                    if b != 0 and ((b // save_period != (b + bsize) // save_period) or ((b + bsize) == num_data)):
+                        outfile = os.path.join(res_out_dir, 'epoch_%04d_batch_%d.png' % (e + 1, b + bsize))
+                        self.save_images(outfile)
+                        outfile = os.path.join(chk_out_dir, 'epoch_%04d' % (e + 1))
+                        self.save_model(outfile)
+
+                    if self.test_mode:
+                        print('\nFinish testing: %s' % self.name)
+                        return
+
+                print('')
+                self.sess.run(update_epoch)
+
+    def make_batch(self, datasets, indx, synthetic_image=False):
+        """
+        Get batch from datasets
+        """
+        batch_size = len(indx)
+        batch = np.empty((batch_size, self.input_shape[0], self.input_shape[1], self.input_shape[2]))
+        if synthetic_image:
+            img_batch = [datasets.synthetic_images[ind] for ind in indx]
+            img_dir = datasets.synthetic_image_dir
+        else:
+            img_batch = [datasets.real_images[ind] for ind in indx]
+            img_dir = datasets.real_image_dir
+
+        for ind, img_path in enumerate(img_batch):
+            img_full_path = os.path.join(img_dir, img_path)
+            img = cv2.imread(img_full_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
+            # TODO: Change the resize function from reshape to crop
+            img = cv2.resize(img, (self.input_shape[0], self.input_shape[1]))
+            # img = np.pad(img, ((0, 0), (2, 2), (2, 2)), 'constant', constant_values=0)
+            img = img / 255.0
+            img = img * 2.0 - 1.0
+            batch[ind] = img
+        return batch
+
+    def save_images(self, filename):
+        """
+        Save images generated from random sample numbers
+        """
+        imgs = self.predict(self.test_data) * 0.5 + 0.5
+        imgs = np.clip(imgs, 0.0, 1.0)
+        if imgs.shape[3] == 1:
+            imgs = np.squeeze(imgs, axis=(3,))
+            dims = 1
+
+        # _, height, width, dims = imgs.shape
+        _, height, width = imgs.shape
+
+        margin = min(width, height) // 10
+        figure = np.ones(((margin + height) * 10 + margin, (margin + width) * 10 + margin, dims), np.float32)
+
+        for i in range(100):
+            row = i // 10
+            col = i % 10
+
+            y = margin + (margin + height) * row
+            x = margin + (margin + width) * col
+            # figure[y:y+height, x:x+width, :] = imgs[i, :, :, :]
+            figure[y:y+height, x:x+width, 0] = imgs[i, :, :]
+
+        # figure = Image.fromarray((figure * 255.0).astype(np.uint8))
+        figure = Image.fromarray((figure[:,:,0] * 255.0).astype(np.uint8))
+        figure.save(filename)
+
+    def save_model(self, model_file):
+        self.saver.save(self.sess, model_file)
+
+    def load_model(self, model_file):
+        self.saver.restore(self.sess, model_file)
+
+    @abstractmethod
+    def make_test_data(self):
+        """
+        Please override "make_test_data" method in the derived model!
+        """
+        pass
+
+    @abstractmethod
+    def predict(self, z_sample):
+        """
+        Please override "predict" method in the derived model!
+        """
+        pass
+
+    @abstractmethod
+    def train_on_batch(self, x_batch, index):
+        """
+        Please override "train_on_batch" method in the derived model!
+        """
+        pass
+
+    def image_tiling(self, images, rows, cols):
+        n_images = rows * cols
+        mg = max(self.input_shape[0], self.input_shape[1]) // 20
+        pad_img = tf.pad(images, [[0, 0], [mg, mg], [mg, mg], [0, 0]], constant_values=1.0)
+        img_arr = tf.split(pad_img, n_images, 0)
+
+        rows = []
+        for i in range(self.test_size):
+            rows.append(tf.concat(img_arr[i * cols: (i + 1) * cols], axis=2))
+
+        tile = tf.concat(rows, axis=1)
+        return tile
+
 
 class BaseModel(metaclass=ABCMeta):
     """
@@ -242,6 +491,7 @@ class BaseModel(metaclass=ABCMeta):
 
         tile = tf.concat(rows, axis=1)
         return tile
+
 
 class CondBaseModel(BaseModel):
     def __init__(self, **kwargs):

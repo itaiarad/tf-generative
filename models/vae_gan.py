@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from .base import BaseModel
+from .base import BaseModel, HandBaseModel
 from .utils import *
 from .wnorm import *
 
@@ -175,7 +175,7 @@ class Discriminator(object):
         return y, f
 
 
-class VAEGAN(BaseModel):
+class VAEGAN(HandBaseModel):
     def __init__(self,
         input_shape=(64, 64, 3),
         z_dims = 128,

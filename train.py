@@ -10,7 +10,7 @@ matplotlib.use('Agg')
 import tensorflow as tf
 
 from models import *
-from datasets import load_data, mnist, svhn
+from datasets import load_data, mnist, svhn, hands
 
 models = {
     'vae': VAE,
@@ -29,13 +29,16 @@ models = {
 def main(_):
     # Parsing arguments
     parser = argparse.ArgumentParser(description='Training GANs or VAEs')
-    # parser.add_argument('--model', type=str, required=False, default='cvaegan')
+    # parser.add_argument('--model', type=str, required=False, default='vae')
     parser.add_argument('--model', type=str, required=False, default='vaegan')
+    # parser.add_argument('--dataset', type=str, required=False, default=r'mnist')
+    parser.add_argument('--dataset', type=str, required=False, default=r'hands')
     # parser.add_argument('--dataset', type=str, required=False, default=r'.\datasets\files\celebA.hdf5')
-    parser.add_argument('--dataset', type=str, required=False, default=r'mnist')
     parser.add_argument('--datasize', type=int, default=-1)
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--batchsize', type=int, default=50)
+    parser.add_argument('--input_shape', type=int, default=240)
+    parser.add_argument('--num_channel', type=int, default=3)
     parser.add_argument('--output', default='output')
     parser.add_argument('--zdims', type=int, default=256)
     parser.add_argument('--gpu', type=int, default=0)
@@ -56,6 +59,8 @@ def main(_):
         datasets = mnist.load_data()
     elif args.dataset == 'svhn':
         datasets = svhn.load_data()
+    elif args.dataset == 'hands':
+        datasets = hands.load_data()
     else:
         datasets = load_data(args.dataset, args.datasize)
 
@@ -63,14 +68,18 @@ def main(_):
     if args.model not in models:
         raise Exception('Unknown model:', args.model)
 
+    if args.dataset == 'hands':
+        input_size = (args.input_shape, args.input_shape, args.num_channel)
+    else:
+        input_size = datasets.shape[1:]
+
     model = models[args.model](
         batchsize=args.batchsize,
-        input_shape=datasets.shape[1:],
+        input_shape=input_size,
         attr_names=None or datasets.attr_names,
         z_dims=args.zdims,
         output=args.output,
-        resume=args.resume
-    )
+        resume=args.resume)
 
     if args.testmode:
         model.test_mode = True
@@ -78,7 +87,8 @@ def main(_):
     tf.set_random_seed(12345)
 
     # Training loop
-    datasets.images = datasets.images.astype('float32') * 2.0 - 1.0
+    if args.dataset != 'hands':
+        datasets.images = datasets.images.astype('float32') * 2.0 - 1.0
     model.main_loop(datasets,
                     epochs=args.epoch)
 
