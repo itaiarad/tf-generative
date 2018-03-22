@@ -202,6 +202,7 @@ class HandBaseModel(metaclass=ABCMeta):
         """
         Save images generated from random sample numbers
         """
+        print('[*] Saving temporary results')
         imgs = self.predict(self.test_data) * 0.5 + 0.5
         imgs = np.clip(imgs, 0.0, 1.0)
         if imgs.shape[3] == 1:
@@ -209,7 +210,7 @@ class HandBaseModel(metaclass=ABCMeta):
             dims = 1
 
         # _, height, width, dims = imgs.shape
-        _, height, width = imgs.shape
+        _, height, width, dims = imgs.shape
 
         margin = min(width, height) // 10
         figure = np.ones(((margin + height) * 10 + margin, (margin + width) * 10 + margin, dims), np.float32)
@@ -221,10 +222,10 @@ class HandBaseModel(metaclass=ABCMeta):
             y = margin + (margin + height) * row
             x = margin + (margin + width) * col
             # figure[y:y+height, x:x+width, :] = imgs[i, :, :, :]
-            figure[y:y+height, x:x+width, 0] = imgs[i, :, :]
+            figure[y:y + height, x:x + width, :] = imgs[i, :, :]
 
-        # figure = Image.fromarray((figure * 255.0).astype(np.uint8))
-        figure = Image.fromarray((figure[:,:,0] * 255.0).astype(np.uint8))
+            # figure = Image.fromarray((figure * 255.0).astype(np.uint8))
+        figure = Image.fromarray((figure[:, :, 0] * 255.0).astype(np.uint8))
         figure.save(filename)
 
     def save_model(self, model_file):
