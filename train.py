@@ -39,6 +39,7 @@ def main(_):
     parser.add_argument('--batchsize', type=int, default=10)
     parser.add_argument('--input_shape', type=int, default=32)
     parser.add_argument('--num_channel', type=int, default=3)
+    parser.add_argument('--save_period', type=int, default=10000)
     parser.add_argument('--output', default='output')
     parser.add_argument('--zdims', type=int, default=256)
     parser.add_argument('--gpu', type=int, default=0)
@@ -81,7 +82,8 @@ def main(_):
         attr_names=None or datasets.attr_names,
         z_dims=args.zdims,
         output=args.output,
-        resume=args.resume)
+        resume=args.resume,
+        save_period=args.save_period)
 
     if args.testmode:
         model.test_mode = True

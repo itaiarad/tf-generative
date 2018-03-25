@@ -38,6 +38,11 @@ class HandBaseModel(metaclass=ABCMeta):
 
         self.input_shape = kwargs['input_shape']
 
+        if 'save_period' not in kwargs:
+            raise Exception('Please specify save_period!')
+
+        self.save_period = kwargs['save_period']
+
         if 'output' not in kwargs:
             self.output = 'output'
         else:
@@ -157,11 +162,8 @@ class HandBaseModel(metaclass=ABCMeta):
                     sys.stdout.flush()
 
                     # Save generated images
-                    #TODO: Add save_period as a parameter
-                    # save_period = 1000
-                    save_period = 10
 
-                    if b != 0 and ((b // save_period != (b + bsize) // save_period) or ((b + bsize) == num_data)):
+                    if b != 0 and ((b // self.save_period != (b + bsize) // self.save_period) or ((b + bsize) == num_data)):
                         outfile = os.path.join(res_out_dir, 'epoch_%04d_batch_%d.png' % (e + 1, b + bsize))
                         self.save_images(outfile)
                         outfile = os.path.join(chk_out_dir, 'epoch_%04d' % (e + 1))
