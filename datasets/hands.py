@@ -36,7 +36,7 @@ CHUNK_SIZE = 32768
 #         return data
 
 
-def load_data():
+def load_data(datasize=-1):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -52,5 +52,9 @@ def load_data():
     datasets.attrs = None
     datasets.attr_names = [str(i) for i in range(1)]
     datasets.curr_image_batch = []
+
+    if datasize != -1:
+        datasets.real_images = datasets.real_images[:datasize]
+        datasets.synthetic_images = datasets.synthetic_images[:datasize]
 
     return datasets

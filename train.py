@@ -61,7 +61,7 @@ def main(_):
     elif args.dataset == 'svhn':
         datasets = svhn.load_data()
     elif args.dataset == 'hands':
-        datasets = hands.load_data()
+        datasets = hands.load_data(args.datasize)
     else:
         datasets = load_data(args.dataset, args.datasize)
 
