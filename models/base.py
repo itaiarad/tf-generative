@@ -157,8 +157,9 @@ class HandBaseModel(metaclass=ABCMeta):
                     sys.stdout.flush()
 
                     # Save generated images
-                    #TODO: add save_period as a parameter
-                    save_period = 1000
+                    #TODO: Add save_period as a parameter
+                    # save_period = 1000
+                    save_period = 10
 
                     if b != 0 and ((b // save_period != (b + bsize) // save_period) or ((b + bsize) == num_data)):
                         outfile = os.path.join(res_out_dir, 'epoch_%04d_batch_%d.png' % (e + 1, b + bsize))
@@ -202,7 +203,10 @@ class HandBaseModel(metaclass=ABCMeta):
         """
         Save images generated from random sample numbers
         """
-        print('[*] Saving temporary results')
+        num_imgs = 100
+
+        #TODO: Solve why pictures are saved as black and white
+        print('[*] Saving temporary results\n')
         imgs = self.predict(self.test_data) * 0.5 + 0.5
         imgs = np.clip(imgs, 0.0, 1.0)
         if imgs.shape[3] == 1:
@@ -215,17 +219,17 @@ class HandBaseModel(metaclass=ABCMeta):
         margin = min(width, height) // 10
         figure = np.ones(((margin + height) * 10 + margin, (margin + width) * 10 + margin, dims), np.float32)
 
-        for i in range(100):
+        for i in range(num_imgs):
             row = i // 10
             col = i % 10
 
             y = margin + (margin + height) * row
             x = margin + (margin + width) * col
             # figure[y:y+height, x:x+width, :] = imgs[i, :, :, :]
-            figure[y:y + height, x:x + width, :] = imgs[i, :, :]
+            figure[y:y + height, x:x + width, :] = imgs[i, :, :, :]
 
             # figure = Image.fromarray((figure * 255.0).astype(np.uint8))
-        figure = Image.fromarray((figure[:, :, 0] * 255.0).astype(np.uint8))
+        figure = Image.fromarray((figure[:, :, :] * 255.0).astype(np.uint8))
         figure.save(filename)
 
     def save_model(self, model_file):
