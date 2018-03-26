@@ -50,7 +50,9 @@ class HandBaseModel(metaclass=ABCMeta):
 
         self.resume = kwargs['resume']
 
-        self.sess = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allocator_type = 'BFC'
+        self.sess = tf.Session(config=config)
         self.writer = None
         self.saver = None
         self.summary = None
