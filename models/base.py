@@ -58,7 +58,7 @@ class HandBaseModel(metaclass=ABCMeta):
         self.saver = None
         self.summary = None
 
-        self.test_size = 10
+        self.test_size = 5
         self.test_data = None
 
         self.test_mode = False
@@ -103,7 +103,7 @@ class HandBaseModel(metaclass=ABCMeta):
             os.makedirs(log_out_dir)
 
         # Make test data
-        self.make_test_data()
+        self.make_test_data(datasets)
 
         # Start training
         with self.sess.as_default():
@@ -210,7 +210,7 @@ class HandBaseModel(metaclass=ABCMeta):
         """
         Save images generated from random sample numbers
         """
-        num_imgs = 100
+        num_imgs = self.test_size * self.test_size
 
         print('[*] Saving temporary results\n')
         imgs = self.predict(self.test_data) * 0.5 + 0.5
@@ -219,22 +219,17 @@ class HandBaseModel(metaclass=ABCMeta):
             imgs = np.squeeze(imgs, axis=(3,))
             dims = 1
 
-        # _, height, width, dims = imgs.shape
         _, height, width, dims = imgs.shape
-
-        margin = min(width, height) // 10
-        figure = np.ones(((margin + height) * 10 + margin, (margin + width) * 10 + margin, dims), np.float32)
-
+        margin = min(width, height) // self.test_size
+        figure = np.ones(
+            ((margin + height) * self.test_size + margin, (margin + width) * self.test_size + margin, dims), np.float32)
         for i in range(num_imgs):
-            row = i // 10
-            col = i % 10
-
+            row = i // self.test_size
+            col = i % self.test_size
             y = margin + (margin + height) * row
             x = margin + (margin + width) * col
-            # figure[y:y+height, x:x+width, :] = imgs[i, :, :, :]
             figure[y:y + height, x:x + width, :] = imgs[i, :, :, :]
 
-            # figure = Image.fromarray((figure * 255.0).astype(np.uint8))
         figure = Image.fromarray((figure[:, :, :] * 255.0).astype(np.uint8))
         figure.save(filename)
 

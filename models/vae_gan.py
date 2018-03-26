@@ -247,8 +247,10 @@ class VAEGAN(HandBaseModel):
         )
         return x_sample
 
-    def make_test_data(self):
-        self.test_data = np.random.normal(size=(self.test_size * self.test_size, self.z_dims))
+    def make_test_data(self, datasets):
+        syn_ind = range(self.test_size*self.test_size)
+        self.test_data = self.make_batch(datasets, syn_ind, synthetic_image=True)
+        # self.test_data = np.random.normal(size=(self.test_size * self.test_size, self.z_dims))
 
     def build_model(self):
         self.encoder = Encoder(self.input_shape, self.z_dims, self.use_wnorm)
@@ -334,7 +336,7 @@ class VAEGAN(HandBaseModel):
         #     self.train_op = tf.no_op(name='train')
 
         # Predictor
-        self.z_test = tf.placeholder(tf.float32, shape=(None, self.z_dims))
+        self.z_test = tf.placeholder(tf.float32, shape=batch_shape)
         self.x_test = self.decoder(self.z_test)
         x_tile = self.image_tiling(self.x_test, self.test_size, self.test_size)
 
