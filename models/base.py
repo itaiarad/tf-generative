@@ -121,6 +121,7 @@ class HandBaseModel(metaclass=ABCMeta):
 
             # Update rule
             num_data = len(datasets.real_images)
+            # num_syn_data = len(datasets.synthetic_images)
             update_epoch = current_epoch.assign(current_epoch + 1)
             update_batch = current_batch.assign(tf.mod(tf.minimum(current_batch + self.batchsize, num_data), num_data))
 
@@ -130,6 +131,7 @@ class HandBaseModel(metaclass=ABCMeta):
             print('\n[*] -- START TRAINING -- \n')
             for e in range(current_epoch.eval(), epochs):
                 perm = np.random.permutation(num_data)
+                # perm_syn = np.random.permutation(num_syn_data)
                 start_time = time.time()
                 for b in range(current_batch.eval(), num_data, self.batchsize):
                     # Update batch index
@@ -144,7 +146,7 @@ class HandBaseModel(metaclass=ABCMeta):
                     # Get batch and train on it
                     x_batch = self.make_batch(datasets, indx)
                     #TODO: Change range of sythetic images from 100 to different size
-                    syn_ind = range(100)
+                    syn_ind = range(self.batchsize)
                     x_sythetic_batch = self.make_batch(datasets, syn_ind, synthetic_image=True)
                     losses = self.train_on_batch(x_batch, e * num_data + (b + bsize), z_p=x_sythetic_batch)
 
