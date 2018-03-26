@@ -56,7 +56,7 @@ def main(_):
     parser.add_argument('--alpha_decay', type=int, default=0.7)
     parser.add_argument('--gamma_img2img', type=int, default=0.5)
     parser.add_argument('--gamma_dis', type=int, default=0.5)
-    parser.add_argument('--s', type=bool, default=False)
+    parser.add_argument('--use_feature_match', type=bool, default=False)
 
     args = parser.parse_args()
 
