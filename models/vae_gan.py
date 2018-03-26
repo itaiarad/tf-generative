@@ -199,12 +199,20 @@ class VAEGAN(HandBaseModel):
         self.x_test = None
 
         #  Added discriminator parameters
-        self.alpha = 0.7
-        self.use_feature_match = False
+        self.use_feature_match = kwargs['use_feature_match']
         self.E_f_D_real = None
         self.E_f_D_fake = None
-        self.gamma_img2img = 0.5  #  L_G loss ratio from img to img
-        self.gamma_dis = 0.5   #  L_G loss ratio from discriminator
+        self.alpha = kwargs['alpha_decay']
+        self.gamma_img2img = kwargs['gamma_img2img']  #  L_G loss ratio from img to img
+        self.gamma_dis = kwargs['gamma_dis']  #  L_G loss ratio from discriminator
+
+        #  General training parameters
+        self.lr_enc = kwargs['lr_enc']
+        self.lr_dec = kwargs['lr_dec']
+        self.lr_dis = kwargs['lr_dis']
+        self.beta1_enc = kwargs['beta1_enc']
+        self.beta1_dec = kwargs['beta1_dec']
+        self.beta1_dis = kwargs['beta1_dis']
 
         self.build_model()
 
@@ -270,9 +278,9 @@ class VAEGAN(HandBaseModel):
         self.rec_loss = tf.losses.absolute_difference(self.x_train_real, x_sample) * rec_loss_scale
         self.kl_loss = kl_loss(z_avg, z_log_var)
 
-        enc_optim = tf.train.AdamOptimizer(learning_rate=2.0e-4, beta1=0.5)
-        dec_optim = tf.train.AdamOptimizer(learning_rate=2.0e-4, beta1=0.5)
-        dis_optim = tf.train.AdamOptimizer(learning_rate=2.0e-4, beta1=0.5)
+        enc_optim = tf.train.AdamOptimizer(learning_rate=self.lr_enc, beta1=self.lr_enc)
+        dec_optim = tf.train.AdamOptimizer(learning_rate=self.lr_dec, beta1=self.lr_dec)
+        dis_optim = tf.train.AdamOptimizer(learning_rate=self.lr_dis, beta1=self.lr_dis)
         optim = tf.train.AdamOptimizer(learning_rate=2.0e-4, beta1=0.5)
 
         if self.use_feature_match:
@@ -287,7 +295,7 @@ class VAEGAN(HandBaseModel):
             self.gen_trainer = dec_optim.minimize(L_G + L_GD, var_list=self.decoder.variables)
             self.dis_trainer = dis_optim.minimize(L_D, var_list=self.discriminator.variables)
 
-            self.decoder_loss = L_G + L_GD
+            self.gen_loss = L_G + L_GD
             self.dis_loss = L_D
 
             tf.summary.scalar('L_GD', L_GD)
@@ -337,13 +345,16 @@ class VAEGAN(HandBaseModel):
         tf.summary.scalar('rec_loss', self.rec_loss)
         tf.summary.scalar('kl_loss', self.kl_loss)
         # Added summary
+        tf.summary.scalar('gen_loss', self.gen_loss)
         tf.summary.scalar('L_G', L_G)
         tf.summary.scalar('L_D', L_D)
         tf.summary.scalar('L_KL', self.kl_loss)
-        tf.summary.scalar('gen_loss', self.gen_loss)
         tf.summary.scalar('dis_loss', self.dis_loss)
         tf.summary.scalar('gen_acc', self.gen_acc)
         tf.summary.scalar('dis_acc', self.dis_acc)
+        # tf.summary.histogram('encoder_variables', self.encoder.variables)
+        # tf.summary.histogram('decoder_variables', self.decoder.variables)
+        # tf.summary.histogram('discriminator_variables', self.discriminator.variables)
 
         self.summary = tf.summary.merge_all()
 

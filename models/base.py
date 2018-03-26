@@ -207,7 +207,6 @@ class HandBaseModel(metaclass=ABCMeta):
         """
         num_imgs = 100
 
-        #TODO: Solve why pictures are saved as black and white
         print('[*] Saving temporary results\n')
         imgs = self.predict(self.test_data) * 0.5 + 0.5
         imgs = np.clip(imgs, 0.0, 1.0)

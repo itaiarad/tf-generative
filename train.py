@@ -34,10 +34,6 @@ def main(_):
     # parser.add_argument('--dataset', type=str, required=False, default=r'mnist')
     parser.add_argument('--dataset', type=str, required=False, default=r'hands')
     # parser.add_argument('--dataset', type=str, required=False, default=r'.\datasets\files\celebA.hdf5')
-    parser.add_argument('--datasize', type=int, default=-1)
-    parser.add_argument('--epoch', type=int, default=200)
-    parser.add_argument('--batchsize', type=int, default=10)
-    parser.add_argument('--input_shape', type=int, default=32)
     parser.add_argument('--num_channel', type=int, default=3)
     parser.add_argument('--save_period', type=int, default=10000)
     parser.add_argument('--output', default='output')
@@ -45,6 +41,22 @@ def main(_):
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--testmode', action='store_true')
+
+    # Training parameters
+    parser.add_argument('--datasize', type=int, default=-1)
+    parser.add_argument('--lr_enc', type=int, default=2.0e-4)
+    parser.add_argument('--lr_dec', type=int, default=2.0e-4)
+    parser.add_argument('--lr_dis', type=int, default=2.0e-4)
+    parser.add_argument('--beta1_enc', type=int, default=0.5)
+    parser.add_argument('--beta1_dec', type=int, default=0.5)
+    parser.add_argument('--beta1_dis', type=int, default=0.5)
+    parser.add_argument('--epoch', type=int, default=200)
+    parser.add_argument('--batchsize', type=int, default=10)
+    parser.add_argument('--input_shape', type=int, default=32)
+    parser.add_argument('--alpha_decay', type=int, default=0.7)
+    parser.add_argument('--gamma_img2img', type=int, default=0.5)
+    parser.add_argument('--gamma_dis', type=int, default=0.5)
+    parser.add_argument('--s', type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -83,7 +95,17 @@ def main(_):
         z_dims=args.zdims,
         output=args.output,
         resume=args.resume,
-        save_period=args.save_period)
+        save_period=args.save_period,
+        lr_enc=args.lr_enc,
+        lr_dec=args.lr_dec,
+        lr_dis=args.lr_dis,
+        beta1_enc=args.beta1_enc,
+        beta1_dec=args.beta1_dec,
+        beta1_dis=args.beta1_dis,
+        alpha_decay=args.alpha_decay,
+        gamma_img2img=args.gamma_img2img,
+        gamma_dis=args.gamma_dis,
+        use_feature_match=args.use_feature_match)
 
     if args.testmode:
         model.test_mode = True
